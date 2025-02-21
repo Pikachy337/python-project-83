@@ -9,3 +9,4 @@ coverage.xml
 .idea/
 venv/
 path/
+.env
