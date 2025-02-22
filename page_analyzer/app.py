@@ -11,4 +11,4 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 @app.route('/')
 def home():
-    return 'Hello, My Web Site ^.^'
+    return 'Катя Жилина Лучшая Девочка в мире! ^.^'
