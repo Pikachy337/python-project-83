@@ -9,12 +9,15 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
+
 def get_db_connection():
     return psycopg2.connect(os.getenv('DATABASE_URL'))
+
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/urls', methods=['GET'])
 def urls():
@@ -26,6 +29,7 @@ def urls():
     conn.close()
     return render_template('urls.html', urls=urls)
 
+
 @app.route('/urls/<int:id>')
 def url_detail(id):
     conn = get_db_connection()
@@ -35,6 +39,7 @@ def url_detail(id):
     cur.close()
     conn.close()
     return render_template('url_detail.html', url=url)
+
 
 @app.route('/urls', methods=['POST'])
 def add_url():
