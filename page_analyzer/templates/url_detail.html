@@ -23,7 +23,6 @@
     <div class="container-lg mt-3">
         <h1>Сайт: {{ url[1] }}</h1>
 
-        <!-- URL details table -->
         <div class="table-responsive">
             <table class="table table-bordered table-hover text-nowrap" data-test="url">
                 <tbody>
@@ -43,13 +42,11 @@
             </table>
         </div>
 
-        <!-- Check submission form -->
         <h2 class="mt-5 mb-3">Проверки</h2>
         <form method="POST" action="{{ url_for('add_check', id=url[0]) }}">
             <input type="submit" class="btn btn-primary" value="Запустить проверку">
         </form>
 
-        <!-- Checks table with SEO data -->
         <div>
             <table class="table table-bordered table-hover mt-2" data-test="checks">
                 <thead>

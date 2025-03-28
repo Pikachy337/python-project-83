@@ -48,12 +48,14 @@ def add_url():
 
     try:
         with get_db() as conn, conn.cursor() as cur:
-            cur.execute('SELECT id FROM urls WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))', (url,))
+            cur.execute('SELECT id FROM urls WHERE LOWER(TRIM(name))'
+                        ' = LOWER(TRIM(%s))', (url,))
             if existing := cur.fetchone():
                 flash('Страница уже существует', 'info')
                 return redirect(url_for('url_detail', id=existing[0]))
 
-            cur.execute('INSERT INTO urls (name) VALUES (%s) RETURNING id', (url,))
+            cur.execute('INSERT INTO urls (name) '
+                        'VALUES (%s) RETURNING id', (url,))
             new_id = cur.fetchone()[0]
             flash('Страница успешно добавлена', 'success')
             return redirect(url_for('url_detail', id=new_id))
@@ -70,8 +72,8 @@ def url_detail(id):
         url = cur.fetchone()
 
         cur.execute('''
-            SELECT * FROM url_checks 
-            WHERE url_id = %s 
+            SELECT * FROM url_checks
+            WHERE url_id = %s
             ORDER BY id DESC
         ''', (id,))
         checks = cur.fetchall()
@@ -112,10 +114,12 @@ def add_check(id):
 
         cur.execute(
             '''
-            INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at) 
+            INSERT INTO url_checks (url_id,
+            status_code, h1, title, description, created_at)
             VALUES (%s, %s, %s, %s, %s, %s)
             ''',
-            (id, status_code, h1_content, title_content, description_content, datetime.now())
+            (id, status_code, h1_content,
+             title_content, description_content, datetime.now())
         )
         conn.commit()
 
