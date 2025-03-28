@@ -44,18 +44,18 @@ def add_url():
 
     if not url or len(url) > 255 or not validators.url(url):
         flash('Некорректный URL', 'danger')
-        return render_template('index.html', error="Некорректный URL"), 422
+        return redirect(url_for('index'))
 
     try:
         with get_db() as conn, conn.cursor() as cur:
-            cur.execute('SELECT id FROM urls'
-                        ' WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))', (url,))
+            cur.execute('SELECT id FROM urls '
+                        'WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))', (url,))
             if existing := cur.fetchone():
                 flash('Страница уже существует', 'info')
                 return redirect(url_for('url_detail', id=existing[0]))
 
-            cur.execute('INSERT INTO urls (name) VALUES (%s) RETURNING id',
-                        (url,))
+            cur.execute('INSERT INTO urls (name)'
+                        ' VALUES (%s) RETURNING id', (url,))
             new_id = cur.fetchone()[0]
             flash('Страница успешно добавлена', 'success')
             return redirect(url_for('url_detail', id=new_id))
@@ -108,22 +108,23 @@ def add_check(id):
             description_content = description['content'] if description else ''
 
             status_code = response.status_code
+
         except RequestException:
             flash('Произошла ошибка при проверке', 'danger')
             return redirect(url_for('url_detail', id=id))
 
         cur.execute(
             '''
-            INSERT INTO url_checks (url_id,
-            status_code, h1, title, description, created_at)
+            INSERT INTO url_checks (url_id, status_code,
+            h1, title, description, created_at)
             VALUES (%s, %s, %s, %s, %s, %s)
             ''',
-            (id, status_code, h1_content,
-             title_content, description_content, datetime.now())
+            (id, status_code, h1_content, title_content,
+             description_content, datetime.now())
         )
         conn.commit()
 
-    flash('Проверка завершена успешно', 'success')
+    flash('Страница успешно проверена', 'success')
     return redirect(url_for('url_detail', id=id))
 
 
