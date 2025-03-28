@@ -3,6 +3,9 @@ import psycopg2
 from dotenv import load_dotenv
 import os
 import validators
+import requests
+from requests.exceptions import RequestException
+from datetime import datetime
 
 load_dotenv()
 app = Flask(__name__)
@@ -10,7 +13,6 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 
 def get_db():
-    """Возвращает соединение с базой данных с автоматическим commit при выходе"""
     conn = psycopg2.connect(os.getenv('DATABASE_URL'))
     conn.autocommit = True
     return conn
@@ -25,10 +27,10 @@ def index():
 def urls():
     with get_db() as conn, conn.cursor() as cur:
         cur.execute('''
-            SELECT u.id, u.name, u.created_at, MAX(uc.created_at) as last_check
+            SELECT u.id, u.name, MAX(uc.created_at), MAX(uc.status_code)
             FROM urls u
             LEFT JOIN url_checks uc ON u.id = uc.url_id
-            GROUP BY u.id, u.name, u.created_at
+            GROUP BY u.id, u.name
             ORDER BY u.id DESC
         ''')
         urls = cur.fetchall()
@@ -39,7 +41,6 @@ def urls():
 def add_url():
     url = request.form.get('url', '').strip()
 
-    # Базовая валидация URL
     if not url or len(url) > 255 or not validators.url(url):
         flash('Некорректный URL', 'danger')
         return redirect(url_for('index'))
@@ -51,7 +52,6 @@ def add_url():
                 flash('Страница уже существует', 'info')
                 return redirect(url_for('url_detail', id=existing[0]))
 
-            # Добавляем URL
             cur.execute('INSERT INTO urls (name) VALUES (%s) RETURNING id', (url,))
             new_id = cur.fetchone()[0]
             flash('Страница успешно добавлена', 'success')
@@ -79,11 +79,32 @@ def url_detail(id):
 
 
 @app.route('/urls/<int:id>/checks', methods=['POST'])
-def check_url(id):
+def add_check(id):
     with get_db() as conn, conn.cursor() as cur:
-        cur.execute('INSERT INTO url_checks (url_id) VALUES (%s)', (id,))
+        cur.execute('SELECT name FROM urls WHERE id = %s', (id,))
+        url = cur.fetchone()
+
+        if not url:
+            flash('URL не найден!', 'danger')
+            return redirect(url_for('urls'))
+
+        url = url[0]
+
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            status_code = response.status_code
+        except RequestException:
+            flash('Произошла ошибка при проверке', 'danger')
+            return redirect(url_for('url_detail', id=id))
+
+        cur.execute(
+            'INSERT INTO url_checks (url_id, status_code, created_at) VALUES (%s, %s, %s)',
+            (id, status_code, datetime.now())
+        )
         conn.commit()
-    flash('Страница успешно проверена', 'success')
+
+    flash('Проверка завершена успешно', 'success')
     return redirect(url_for('url_detail', id=id))
 
 

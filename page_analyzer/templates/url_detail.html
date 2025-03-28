@@ -17,39 +17,41 @@
             </ul>
         </div>
     </nav>
-
 </header>
 
-
-<div class="alert alert-success" role="alert">Страница успешно добавлена</div>
-
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="alert alert-success" role="alert">
+    {{ messages[0][1] }}
+</div>
+{% endif %}
+{% endwith %}
 
 <main class="flex-grow-1">
     <div class="container-lg mt-3">
-        <h1>Сайт: https://chat.deepseek.com</h1>
-
+        <h1>Сайт: {{ url[1] }}</h1>
 
         <div class="table-responsive">
             <table class="table table-bordered table-hover text-nowrap" data-test="url">
                 <tbody>
                 <tr>
                     <td>ID</td>
-                    <td>1</td>
+                    <td>{{ url[0] }}</td>
                 </tr>
                 <tr>
                     <td>Имя</td>
-                    <td>https://chat.deepseek.com</td>
+                    <td>{{ url[1] }}</td>
                 </tr>
                 <tr>
                     <td>Дата создания</td>
-                    <td>2025-03-20</td>
+                    <td>{{ url[2] }}</td>
                 </tr>
                 </tbody>
             </table>
         </div>
 
         <h2 class="mt-5 mb-3">Проверки</h2>
-        <form method="post" action="/urls/1/checks">
+        <form method="POST" action="{{ url_for('add_check', id=url[0]) }}">
             <input type="submit" class="btn btn-primary" value="Запустить проверку">
         </form>
 
@@ -66,13 +68,23 @@
                 </tr>
                 </thead>
                 <tbody>
-
+                {% for check in checks %}
+                <tr>
+                    <td>{{ check[0] }}</td>
+                    <td>{{ check[2] }}</td>
+                    <td>{{ check[3] }}</td>
+                    <td>{{ check[4] }}</td>
+                    <td>{{ check[5] }}</td>
+                    <td>{{ check[6] }}</td>
+                </tr>
+                {% endfor %}
                 </tbody>
             </table>
         </div>
 
     </div>
 </main>
+
 <footer class="border-top py-3 mt-5 flex-shrink-0">
     <div class="container-lg">
         <div class="text-center">
