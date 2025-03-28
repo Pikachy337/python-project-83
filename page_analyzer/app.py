@@ -6,6 +6,7 @@ import validators
 import requests
 from requests.exceptions import RequestException
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 load_dotenv()
 app = Flask(__name__)
@@ -93,14 +94,28 @@ def add_check(id):
         try:
             response = requests.get(url)
             response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            h1 = soup.find('h1')
+            title = soup.find('title')
+            description = soup.find('meta', attrs={'name': 'description'})
+
+            h1_content = h1.text if h1 else ''
+            title_content = title.text if title else ''
+            description_content = description['content'] if description else ''
+
             status_code = response.status_code
         except RequestException:
             flash('Произошла ошибка при проверке', 'danger')
             return redirect(url_for('url_detail', id=id))
 
         cur.execute(
-            'INSERT INTO url_checks (url_id, status_code, created_at) VALUES (%s, %s, %s)',
-            (id, status_code, datetime.now())
+            '''
+            INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ''',
+            (id, status_code, h1_content, title_content, description_content, datetime.now())
         )
         conn.commit()
 

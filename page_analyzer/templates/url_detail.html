@@ -1,11 +1,11 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="Third project for Hexlet.io">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Details - Анализатор страниц</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <title>Анализатор страниц</title>
 </head>
 <body class="min-vh-100 d-flex flex-column">
 <header class="flex-shrink-0">
@@ -13,24 +13,17 @@
         <a class="navbar-brand" href="/">Анализатор страниц</a>
         <div id="navbarNav">
             <ul class="navbar-nav">
-                <li class="nav-item"><a class="nav-link " href="/urls">Сайты</a></li>
+                <li class="nav-item"><a class="nav-link" href="/urls">Сайты</a></li>
             </ul>
         </div>
     </nav>
 </header>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
-<div class="alert alert-success" role="alert">
-    {{ messages[0][1] }}
-</div>
-{% endif %}
-{% endwith %}
-
 <main class="flex-grow-1">
     <div class="container-lg mt-3">
         <h1>Сайт: {{ url[1] }}</h1>
 
+        <!-- URL details table -->
         <div class="table-responsive">
             <table class="table table-bordered table-hover text-nowrap" data-test="url">
                 <tbody>
@@ -50,11 +43,13 @@
             </table>
         </div>
 
+        <!-- Check submission form -->
         <h2 class="mt-5 mb-3">Проверки</h2>
         <form method="POST" action="{{ url_for('add_check', id=url[0]) }}">
             <input type="submit" class="btn btn-primary" value="Запустить проверку">
         </form>
 
+        <!-- Checks table with SEO data -->
         <div>
             <table class="table table-bordered table-hover mt-2" data-test="checks">
                 <thead>
