@@ -48,12 +48,14 @@ def add_url():
 
     try:
         with get_db() as conn, conn.cursor() as cur:
-            cur.execute('SELECT id FROM urls WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))', (url,))
+            cur.execute('SELECT id FROM urls'
+                        ' WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))', (url,))
             if existing := cur.fetchone():
                 flash('Страница уже существует', 'info')
                 return redirect(url_for('url_detail', id=existing[0]))
 
-            cur.execute('INSERT INTO urls (name) VALUES (%s) RETURNING id', (url,))
+            cur.execute('INSERT INTO urls (name) VALUES (%s) RETURNING id',
+                        (url,))
             new_id = cur.fetchone()[0]
             flash('Страница успешно добавлена', 'success')
             return redirect(url_for('url_detail', id=new_id))
