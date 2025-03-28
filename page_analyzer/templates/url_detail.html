@@ -8,6 +8,7 @@
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 </head>
 <body class="min-vh-100 d-flex flex-column">
+
 <header class="flex-shrink-0">
     <nav class="navbar navbar-expand-md navbar-dark bg-dark px-3">
         <a class="navbar-brand" href="/">Анализатор страниц</a>
@@ -22,6 +23,14 @@
 <main class="flex-grow-1">
     <div class="container-lg mt-3">
         <h1>Сайт: {{ url[1] }}</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="alert alert-{{ messages[0][0] }}" role="alert">
+            {{ messages[0][1] }}
+        </div>
+        {% endif %}
+        {% endwith %}
 
         <div class="table-responsive">
             <table class="table table-bordered table-hover text-nowrap" data-test="url">
