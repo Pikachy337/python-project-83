@@ -7,6 +7,7 @@ import requests
 from requests.exceptions import RequestException
 from datetime import datetime
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
 load_dotenv()
 app = Flask(__name__)
@@ -44,20 +45,22 @@ def add_url():
 
     if not url or len(url) > 255 or not validators.url(url):
         flash('Некорректный URL', 'danger')
-        return render_template('index.html',
-                               error_message="Некорректный URL"), 422
+        return redirect(url_for('index'))
+
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc.lower()
 
     try:
         with get_db() as conn, conn.cursor() as cur:
             cur.execute('SELECT id FROM urls'
-                        ' WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))', (url,))
+                        ' WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))', (domain,))
             existing = cur.fetchone()
             if existing:
                 flash('Страница уже существует', 'info')
                 return redirect(url_for('url_detail', id=existing[0]))
 
             cur.execute('INSERT INTO urls (name)'
-                        'VALUES (%s) RETURNING id', (url,))
+                        ' VALUES (%s) RETURNING id', (domain,))
             new_id = cur.fetchone()[0]
             flash('Страница успешно добавлена', 'success')
             return redirect(url_for('url_detail', id=new_id))
