@@ -9,6 +9,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
+
 load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
