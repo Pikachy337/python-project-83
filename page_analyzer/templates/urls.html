@@ -37,7 +37,7 @@
                 {% for url in urls %}
                 <tr>
                     <td>{{ url[0] }}</td>
-                    <td><a href="{{ url_for('url_detail', id=url[0]) }}">{{ url[1] }}</a></td>
+                    <td><a href="{{ url_for('url_detail', id=url.id) }}">http://{{ url.name }}</a></td>
                     <td>
                         {% if url[2] %}
                         {{ url[2].strftime('%Y-%m-%d') }}

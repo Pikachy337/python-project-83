@@ -126,7 +126,8 @@ def add_check(id):
 
         cur.execute(
             '''
-            INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at)
+            INSERT INTO url_checks (url_id,
+             status_code, h1, title, description, created_at)
             VALUES (%s, %s, %s, %s, %s, %s)
             ''',
             (id, status_code, h1_content, title_content,
