@@ -45,21 +45,24 @@ def add_url():
 
     if not url or len(url) > 255 or not validators.url(url):
         flash('Некорректный URL', 'danger')
-        return redirect(url_for('index'))
+        return render_template('index.html',
+                               error_message="Некорректный URL"), 422
 
     parsed_url = urlparse(url)
     domain = parsed_url.netloc.lower()
 
     try:
         with get_db() as conn, conn.cursor() as cur:
-            cur.execute('SELECT id FROM urls WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))', (domain,))
+            cur.execute('SELECT id FROM urls'
+                        ' WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))', (domain,))
             existing = cur.fetchone()
 
             if existing:
                 flash('Страница уже существует', 'info')
                 return redirect(url_for('url_detail', id=existing[0]))
 
-            cur.execute('INSERT INTO urls (name) VALUES (%s) RETURNING id', (domain,))
+            cur.execute('INSERT INTO urls (name)'
+                        ' VALUES (%s) RETURNING id', (domain,))
             new_id = cur.fetchone()[0]
             flash('Страница успешно добавлена', 'success')
             return redirect(url_for('url_detail', id=new_id))
@@ -97,8 +100,12 @@ def add_check(id):
 
         url = url[0]
 
+        parsed_url = urlparse(url)
+        if not parsed_url.scheme:
+            url = 'http://' + url
+
         try:
-            response = requests.get(url)
+            response = requests.get(url, allow_redirects=True)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -113,14 +120,13 @@ def add_check(id):
 
             status_code = response.status_code
 
-        except RequestException:
-            flash('Произошла ошибка при проверке', 'danger')
+        except RequestException as e:
+            flash(f'Произошла ошибка при проверке: {str(e)}', 'danger')
             return redirect(url_for('url_detail', id=id))
 
         cur.execute(
             '''
-            INSERT INTO url_checks (url_id, status_code,
-            h1, title, description, created_at)
+            INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at)
             VALUES (%s, %s, %s, %s, %s, %s)
             ''',
             (id, status_code, h1_content, title_content,
