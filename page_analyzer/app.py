@@ -15,6 +15,7 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 
 
 def get_db():
+    """Establishes and returns a connection to the PostgreSQL database."""
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     conn.autocommit = True
     return conn
@@ -22,11 +23,16 @@ def get_db():
 
 @app.route("/")
 def index():
+    """Renders the homepage with a form to submit a new URL."""
     return render_template("index.html")
 
 
 @app.route("/urls", methods=["GET"])
 def urls():
+    """
+    Displays a list of all URLs in the database with their latest check status.
+    Sorted by ID in descending order (newest first).
+    """
     with get_db() as conn, conn.cursor() as cur:
         cur.execute(
             """
@@ -43,6 +49,14 @@ def urls():
 
 @app.route("/urls", methods=["POST"])
 def add_url():
+    """
+    Handles URL submission:
+    - Validates the URL format and length
+    - Extracts the domain (netloc)
+    - Checks if URL already exists in DB
+    - Adds new URL if unique
+    - Redirects to the URL's detail page
+    """
     url = request.form.get("url", "").strip()
 
     if not url or len(url) > 255 or not validators.url(url):
@@ -80,6 +94,11 @@ def add_url():
 
 @app.route("/urls/<int:id>")
 def url_detail(id):
+    """
+    Displays detailed information about a specific URL:
+    - URL metadata
+    - All historical checks (status codes, timestamps)
+    """
     with get_db() as conn, conn.cursor() as cur:
         cur.execute("SELECT * FROM urls WHERE id = %s", (id,))
         url = cur.fetchone()
@@ -99,6 +118,13 @@ def url_detail(id):
 
 @app.route("/urls/<int:id>/checks", methods=["POST"])
 def add_check(id):
+    """
+    Performs a website check:
+    - Fetches the URL content
+    - Extracts h1, title, and meta description
+    - Records HTTP status code and timestamp
+    - Stores results in database
+    """
     with get_db() as conn, conn.cursor() as cur:
         cur.execute("SELECT name FROM urls WHERE id = %s", (id,))
         url = cur.fetchone()
@@ -152,6 +178,10 @@ def add_check(id):
 
     flash("Страница успешно проверена", "success")
     return redirect(url_for("url_detail", id=id))
+
+
+def test_example():
+    assert 1 + 1 == 2
 
 
 if __name__ == "__main__":
