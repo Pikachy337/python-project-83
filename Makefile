@@ -13,4 +13,3 @@ lint:
 	flake8 .
 test:
 	PYTHONPATH=/project pytest tests/ -v
-	
