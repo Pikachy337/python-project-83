@@ -77,48 +77,61 @@ def urls():
     return render_template("urls.html", urls=urls)
 
 
-@app.route("/urls", methods=["POST"])
-def add_url():
-    """
-    Handles URL submission:
-    - Validates the URL format and length
-    - Extracts the domain (netloc)
-    - Checks if URL already exists in DB
-    - Adds new URL if unique
-    - Redirects to the URL's detail page
-    """
-    url = request.form.get("url", "").strip()
-
-    try:
-        normalized_url = validate_and_normalize_url(url)
-        domain = urlparse(normalized_url).netloc.lower()
-
-    except ValueError as e:
-        flash(str(e), "danger")
-        return render_template("index.html", error_message=str(e)), 422
-
+def _check_existing_url(domain):
+    """Check if URL already exists in database."""
     try:
         with get_db() as conn, conn.cursor() as cur:
             cur.execute(
                 "SELECT id FROM urls WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))",
                 (domain,),
             )
-            existing = cur.fetchone()
+            return cur.fetchone()
+    except Exception as e:
+        app.logger.error(f"Database error when checking URL: {str(e)}")
+        return None
 
-            if existing:
-                flash("Страница уже существует", "info")
-                return redirect(url_for("url_detail", id=existing[0]))
 
+def _insert_new_url(domain):
+    """Insert new URL into database."""
+    try:
+        with get_db() as conn, conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO urls (name) VALUES (%s) RETURNING id",
                 (domain,)
             )
-            new_id = cur.fetchone()[0]
-            flash("Страница успешно добавлена", "success")
-            return redirect(url_for("url_detail", id=new_id))
-
+            return cur.fetchone()[0]
     except Exception as e:
-        flash(f"Ошибка базы данных: {str(e)}", "danger")
+        app.logger.error(f"Database error when inserting URL: {str(e)}")
+        raise
+
+
+@app.route("/urls", methods=["POST"])
+def add_url():
+    """Handle URL submission."""
+    url = request.form.get("url", "").strip()
+
+    try:
+        normalized_url = validate_and_normalize_url(url)
+        domain = urlparse(normalized_url).netloc.lower()
+    except ValueError as e:
+        flash(str(e), "danger")
+        return render_template("index.html", error_message=str(e)), 422
+
+    existing = _check_existing_url(domain)
+    if existing is None:
+        flash("Ошибка базы данных", "danger")
+        return redirect(url_for("index"))
+
+    if existing:
+        flash("Страница уже существует", "info")
+        return redirect(url_for("url_detail", id=existing[0]))
+
+    try:
+        new_id = _insert_new_url(domain)
+        flash("Страница успешно добавлена", "success")
+        return redirect(url_for("url_detail", id=new_id))
+    except Exception:
+        flash("Ошибка базы данных", "danger")
         return redirect(url_for("index"))
 
 
