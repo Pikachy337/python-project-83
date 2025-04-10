@@ -36,18 +36,18 @@
                 <tbody>
                 {% for url in urls %}
                 <tr>
-                    <td>{{ url[0] }}</td>
-                    <td><a href="{{ url_for('url_detail', id=url[0]) }}">http://{{ url[1] }}</a></td>
+                    <td>{{ url.id }}</td>
+                    <td><a href="{{ url_for('url_detail', id=url.id) }}">http://{{ url.name }}</a></td>
                     <td>
-                        {% if url[2] %}
-                        {{ url[2].strftime('%Y-%m-%d') }}
+                        {% if url.last_check %}
+                        {{ url.last_check.strftime('%Y-%m-%d') }}
                         {% else %}
                         —
                         {% endif %}
                     </td>
                     <td>
-                        {% if url[3] %}
-                        {{ url[3] }}
+                        {% if url.status_code %}
+                        {{ url.status_code }}
                         {% else %}
                         —
                         {% endif %}
