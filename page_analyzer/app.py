@@ -165,8 +165,8 @@ def add_check(id):
         try:
             response = requests.get(url, allow_redirects=True, timeout=10)
             response.raise_for_status()
-        except RequestException as e:
-            flash(f"Ошибка при запросе к сайту: {str(e)}", "danger")
+        except RequestException:
+            flash("Произошла ошибка при проверке", "danger")
             return redirect(url_for("url_detail", id=id))
 
         seo_data = _get_seo_data(response.text)
@@ -214,5 +214,5 @@ def _save_check_results(conn, url_id, status_code, seo_data):
         flash("Страница успешно проверена", "success")
     except Exception as e:
         conn.rollback()
-        flash("Ошибка при сохранении результатов проверки", "danger")
+        flash("Произошла ошибка при проверке", "danger")
         app.logger.error(f"Database error: {str(e)}")
