@@ -11,3 +11,6 @@ render-start:
 	gunicorn -w 5 -b 0.0.0.0:$(PORT) page_analyzer:app
 lint:
 	flake8 .
+test:
+	PYTHONPATH=/project pytest tests/ -v
+	
