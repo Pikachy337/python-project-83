@@ -12,4 +12,7 @@ render-start:
 lint:
 	flake8 .
 test:
+	pip install -e .
+	pip install pytest flask
+	python -m pytest tests/
 	PYTHONPATH=/project pytest tests/ -v

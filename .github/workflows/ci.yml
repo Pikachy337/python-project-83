@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/setup-python@v4
+      - run: pip install -e .
+      - run: pip install pytest flask
+      - run: python -m pytest tests/
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
