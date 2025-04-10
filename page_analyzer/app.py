@@ -91,15 +91,11 @@ def add_url():
 
     try:
         normalized_url = validate_and_normalize_url(url)
+        domain = urlparse(normalized_url).netloc.lower()
+
     except ValueError as e:
         flash(str(e), "danger")
         return render_template("index.html", error_message=str(e)), 422
-
-    try:
-        domain = urlparse(normalized_url).netloc.lower()
-    except Exception:
-        flash("Ошибка обработки URL", "danger")
-        return redirect(url_for("index"))
 
     try:
         with get_db() as conn, conn.cursor() as cur:
@@ -108,27 +104,22 @@ def add_url():
                 (domain,),
             )
             existing = cur.fetchone()
-    except Exception:
-        flash("Ошибка проверки URL в базе", "danger")
-        return redirect(url_for("index"))
 
-    if existing:
-        flash("Страница уже существует", "info")
-        return redirect(url_for("url_detail", id=existing[0]))
+            if existing:
+                flash("Страница уже существует", "info")
+                return redirect(url_for("url_detail", id=existing[0]))
 
-    try:
-        with get_db() as conn, conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO urls (name) VALUES (%s) RETURNING id",
                 (domain,)
             )
             new_id = cur.fetchone()[0]
-    except Exception as e:
-        flash("Ошибка добавления URL", "danger")
-        return redirect(url_for("index"))
+            flash("Страница успешно добавлена", "success")
+            return redirect(url_for("url_detail", id=new_id))
 
-    flash("Страница успешно добавлена", "success")
-    return redirect(url_for("url_detail", id=new_id))
+    except Exception as e:
+        flash(f"Ошибка базы данных: {str(e)}", "danger")
+        return redirect(url_for("index"))
 
 
 @app.route("/urls/<int:id>")
@@ -157,49 +148,53 @@ def url_detail(id):
 
 @app.route("/urls/<int:id>/checks", methods=["POST"])
 def add_check(id):
-    """
-    Performs a website check:
-    - Fetches the URL content
-    - Extracts h1, title, and meta description
-    - Records HTTP status code and timestamp
-    - Stores results in database
-    """
-    try:
-        with get_db() as conn, conn.cursor() as cur:
-            cur.execute("SELECT name FROM urls WHERE id = %s", (id,))
-            url = cur.fetchone()
-    except Exception:
-        flash("Ошибка доступа к базе данных", "danger")
-        return redirect(url_for("urls"))
+    """Perform website availability and SEO check for given URL ID."""
+    with get_db() as conn, conn.cursor() as cur:
+        cur.execute("SELECT name FROM urls WHERE id = %s", (id,))
+        url = cur.fetchone()
 
-    if not url:
-        flash("URL не найден!", "danger")
-        return redirect(url_for("urls"))
+        if not url:
+            flash("URL не найден!", "danger")
+            return redirect(url_for("urls"))
 
-    url = url[0]
-    try:
+        url = url[0]
         parsed_url = urlparse(url)
         if not parsed_url.scheme:
             url = "http://" + url
-    except Exception:
-        flash("Ошибка обработки URL", "danger")
-        return redirect(url_for("url_detail", id=id))
 
-    try:
-        response = requests.get(url, allow_redirects=True, timeout=10)
-        response.raise_for_status()
-    except RequestException as e:
-        flash(f"Ошибка при запросе: {str(e)}", "danger")
-        return redirect(url_for("url_detail", id=id))
+        try:
+            response = requests.get(url, allow_redirects=True, timeout=10)
+            response.raise_for_status()
+        except RequestException as e:
+            flash(f"Ошибка при запросе к сайту: {str(e)}", "danger")
+            return redirect(url_for("url_detail", id=id))
 
-    try:
-        seo_data = parse_seo_data(response.text)
-    except Exception:
-        flash("Ошибка анализа страницы", "danger")
-        seo_data = {'h1': '', 'title': '', 'description': ''}
+        seo_data = _get_seo_data(response.text)
+        _save_check_results(conn, id, response.status_code, seo_data)
 
+    return redirect(url_for("url_detail", id=id))
+
+
+def _get_seo_data(html_content):
+    """
+    Extract SEO data from HTML content.
+    Returns dict with h1, title and description
+    (empty strings if parsing fails).
+    """
     try:
-        with get_db() as conn, conn.cursor() as cur:
+        return parse_seo_data(html_content)
+    except Exception as e:
+        app.logger.error(f"Ошибка парсинга SEO данных: {str(e)}")
+        return {'h1': '', 'title': '', 'description': ''}
+
+
+def _save_check_results(conn, url_id, status_code, seo_data):
+    """
+    Save URL check results to database.
+    Handles database errors and shows appropriate flash messages.
+    """
+    try:
+        with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO url_checks
@@ -207,18 +202,17 @@ def add_check(id):
                 VALUES (%s, %s, %s, %s, %s, %s)
                 """,
                 (
-                    id,
-                    response.status_code,
+                    url_id,
+                    status_code,
                     seo_data['h1'],
                     seo_data['title'],
                     seo_data['description'],
                     datetime.now(),
                 ),
             )
-            conn.commit()
-    except Exception:
-        flash("Ошибка сохранения проверки", "danger")
-        return redirect(url_for("url_detail", id=id))
-
-    flash("Страница успешно проверена", "success")
-    return redirect(url_for("url_detail", id=id))
+        conn.commit()
+        flash("Страница успешно проверена", "success")
+    except Exception as e:
+        conn.rollback()
+        flash("Ошибка при сохранении результатов проверки", "danger")
+        app.logger.error(f"Database error: {str(e)}")
