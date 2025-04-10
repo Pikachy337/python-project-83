@@ -77,62 +77,81 @@ def urls():
     return render_template("urls.html", urls=urls)
 
 
-def _check_existing_url(domain):
-    """Check if URL already exists in database."""
+@app.route("/urls", methods=["POST"])
+def add_url():
+    """
+    Handles URL submission:
+    - Validates the URL format and length
+    - Extracts the domain (netloc)
+    - Checks if URL already exists in DB
+    - Adds new URL if unique
+    - Redirects to the URL's detail page
+    """
+    url = request.form.get("url", "").strip()
+
+    try:
+        normalized_url = validate_and_normalize_url(url)
+        domain = urlparse(normalized_url).netloc.lower()
+
+    except ValueError as e:
+        flash(str(e), "danger")
+        return render_template("index.html", error_message=str(e)), 422
+
+    # Проверка на существование URL в базе данных
+    if is_url_existing(domain):
+        return redirect(url_for("url_detail", id=get_url_id(domain)))
+
+    # Вставка нового URL в базу данных
+    try:
+        new_id = insert_new_url(domain)
+        flash("Страница успешно добавлена", "success")
+        return redirect(url_for("url_detail", id=new_id))
+
+    except Exception as e:
+        flash(f"Ошибка при добавлении"
+              f" страницы в базу данных: {str(e)}", "danger")
+        return redirect(url_for("index"))
+
+
+def is_url_existing(domain):
+    """Checks if the URL already exists in the database."""
     try:
         with get_db() as conn, conn.cursor() as cur:
             cur.execute(
                 "SELECT id FROM urls WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))",
                 (domain,),
             )
-            return cur.fetchone()
+            existing = cur.fetchone()
+            if existing:
+                flash("Страница уже существует", "info")
+                return True
     except Exception as e:
-        app.logger.error(f"Database error when checking URL: {str(e)}")
-        return None
+        flash(f"Ошибка при проверке существования"
+              f" страницы в базе данных: {str(e)}", "danger")
+        return False
+    return False
 
 
-def _insert_new_url(domain):
-    """Insert new URL into database."""
-    try:
-        with get_db() as conn, conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO urls (name) VALUES (%s) RETURNING id",
-                (domain,)
-            )
-            return cur.fetchone()[0]
-    except Exception as e:
-        app.logger.error(f"Database error when inserting URL: {str(e)}")
-        raise
+def get_url_id(domain):
+    """Fetches the ID of the URL from the database."""
+    with get_db() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT id FROM urls WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))",
+            (domain,),
+        )
+        existing = cur.fetchone()
+        return existing[0] if existing else None
 
 
-@app.route("/urls", methods=["POST"])
-def add_url():
-    """Handle URL submission."""
-    url = request.form.get("url", "").strip()
-
-    try:
-        normalized_url = validate_and_normalize_url(url)
-        domain = urlparse(normalized_url).netloc.lower()
-    except ValueError as e:
-        flash(str(e), "danger")
-        return render_template("index.html", error_message=str(e)), 422
-
-    existing = _check_existing_url(domain)
-    if existing is None:
-        flash("Ошибка базы данных", "danger")
-        return redirect(url_for("index"))
-
-    if existing:
-        flash("Страница уже существует", "info")
-        return redirect(url_for("url_detail", id=existing[0]))
-
-    try:
-        new_id = _insert_new_url(domain)
-        flash("Страница успешно добавлена", "success")
-        return redirect(url_for("url_detail", id=new_id))
-    except Exception:
-        flash("Ошибка базы данных", "danger")
-        return redirect(url_for("index"))
+def insert_new_url(domain):
+    """Inserts a new URL into the database and returns the ID."""
+    with get_db() as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO urls (name) VALUES (%s) RETURNING id",
+            (domain,)
+        )
+        new_id = cur.fetchone()[0]
+        return new_id
 
 
 @app.route("/urls/<int:id>")
