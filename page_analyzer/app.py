@@ -91,11 +91,15 @@ def add_url():
 
     try:
         normalized_url = validate_and_normalize_url(url)
-        domain = urlparse(normalized_url).netloc.lower()
-
     except ValueError as e:
         flash(str(e), "danger")
         return render_template("index.html", error_message=str(e)), 422
+
+    try:
+        domain = urlparse(normalized_url).netloc.lower()
+    except Exception:
+        flash("Ошибка обработки URL", "danger")
+        return redirect(url_for("index"))
 
     try:
         with get_db() as conn, conn.cursor() as cur:
@@ -104,22 +108,27 @@ def add_url():
                 (domain,),
             )
             existing = cur.fetchone()
+    except Exception:
+        flash("Ошибка проверки URL в базе", "danger")
+        return redirect(url_for("index"))
 
-            if existing:
-                flash("Страница уже существует", "info")
-                return redirect(url_for("url_detail", id=existing[0]))
+    if existing:
+        flash("Страница уже существует", "info")
+        return redirect(url_for("url_detail", id=existing[0]))
 
+    try:
+        with get_db() as conn, conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO urls (name) VALUES (%s) RETURNING id",
                 (domain,)
             )
             new_id = cur.fetchone()[0]
-            flash("Страница успешно добавлена", "success")
-            return redirect(url_for("url_detail", id=new_id))
-
     except Exception as e:
-        flash(f"Ошибка базы данных: {str(e)}", "danger")
+        flash("Ошибка добавления URL", "danger")
         return redirect(url_for("index"))
+
+    flash("Страница успешно добавлена", "success")
+    return redirect(url_for("url_detail", id=new_id))
 
 
 @app.route("/urls/<int:id>")
@@ -155,25 +164,42 @@ def add_check(id):
     - Records HTTP status code and timestamp
     - Stores results in database
     """
-    with get_db() as conn, conn.cursor() as cur:
-        cur.execute("SELECT name FROM urls WHERE id = %s", (id,))
-        url = cur.fetchone()
+    try:
+        with get_db() as conn, conn.cursor() as cur:
+            cur.execute("SELECT name FROM urls WHERE id = %s", (id,))
+            url = cur.fetchone()
+    except Exception:
+        flash("Ошибка доступа к базе данных", "danger")
+        return redirect(url_for("urls"))
 
-        if not url:
-            flash("URL не найден!", "danger")
-            return redirect(url_for("urls"))
+    if not url:
+        flash("URL не найден!", "danger")
+        return redirect(url_for("urls"))
 
-        url = url[0]
+    url = url[0]
+    try:
         parsed_url = urlparse(url)
         if not parsed_url.scheme:
             url = "http://" + url
+    except Exception:
+        flash("Ошибка обработки URL", "danger")
+        return redirect(url_for("url_detail", id=id))
 
-        try:
-            response = requests.get(url, allow_redirects=True)
-            response.raise_for_status()
+    try:
+        response = requests.get(url, allow_redirects=True, timeout=10)
+        response.raise_for_status()
+    except RequestException as e:
+        flash(f"Ошибка при запросе: {str(e)}", "danger")
+        return redirect(url_for("url_detail", id=id))
 
-            seo_data = parse_seo_data(response.text)
+    try:
+        seo_data = parse_seo_data(response.text)
+    except Exception:
+        flash("Ошибка анализа страницы", "danger")
+        seo_data = {'h1': '', 'title': '', 'description': ''}
 
+    try:
+        with get_db() as conn, conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO url_checks
@@ -190,13 +216,9 @@ def add_check(id):
                 ),
             )
             conn.commit()
-            flash("Страница успешно проверена", "success")
-
-        except RequestException as e:
-            flash(f"Произошла ошибка при проверке: {str(e)}", "danger")
-
+    except Exception:
+        flash("Ошибка сохранения проверки", "danger")
         return redirect(url_for("url_detail", id=id))
 
-
-if __name__ == "__main__":
-    app.run(debug=True)
+    flash("Страница успешно проверена", "success")
+    return redirect(url_for("url_detail", id=id))
