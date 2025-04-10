@@ -1,6 +1,7 @@
 from page_analyzer.app import validate_and_normalize_url
 import pytest
 
+
 @pytest.fixture
 def test_validate_and_normalize_url():
     assert (validate_and_normalize_url("https://example.com")
