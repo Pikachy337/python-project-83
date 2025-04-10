@@ -64,16 +64,22 @@ def urls():
     Sorted by ID in descending order (newest first).
     """
     with get_db() as conn, conn.cursor() as cur:
-        cur.execute(
-            """
+        cur.execute("""
             SELECT u.id, u.name, MAX(uc.created_at), MAX(uc.status_code)
             FROM urls u
             LEFT JOIN url_checks uc ON u.id = uc.url_id
             GROUP BY u.id, u.name
             ORDER BY u.id DESC
-        """
-        )
-        urls = cur.fetchall()
+        """)
+        urls = []
+        for row in cur.fetchall():
+            urls.append({
+                'id': row[0],
+                'name': row[1],
+                'last_check': row[2],
+                'status_code': row[3]
+            })
+
     return render_template("urls.html", urls=urls)
 
 
@@ -97,11 +103,9 @@ def add_url():
         flash(str(e), "danger")
         return render_template("index.html", error_message=str(e)), 422
 
-    # Проверка на существование URL в базе данных
     if is_url_existing(domain):
         return redirect(url_for("url_detail", id=get_url_id(domain)))
 
-    # Вставка нового URL в базу данных
     try:
         new_id = insert_new_url(domain)
         flash("Страница успешно добавлена", "success")
@@ -163,17 +167,25 @@ def url_detail(id):
     """
     with get_db() as conn, conn.cursor() as cur:
         cur.execute("SELECT * FROM urls WHERE id = %s", (id,))
-        url = cur.fetchone()
+        url_row = cur.fetchone()
+        url = {
+            'id': url_row[0],
+            'name': url_row[1],
+            'created_at': url_row[2]
+        } if url_row else None
 
-        cur.execute(
-            """
-            SELECT * FROM url_checks
-            WHERE url_id = %s
-            ORDER BY id DESC
-        """,
-            (id,),
-        )
-        checks = cur.fetchall()
+        cur.execute("SELECT * FROM url_checks"
+                    " WHERE url_id = %s ORDER BY id DESC", (id,))
+        checks = []
+        for check_row in cur.fetchall():
+            checks.append({
+                'id': check_row[0],
+                'status_code': check_row[2],
+                'h1': check_row[3],
+                'title': check_row[4],
+                'description': check_row[5],
+                'created_at': check_row[6]
+            })
 
     return render_template("url_detail.html", url=url, checks=checks)
 
